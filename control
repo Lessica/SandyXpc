@@ -1,0 +1,9 @@
+Package: com.82flex.libSandyXpc
+Name: libSandyXpc
+Version: 1.0
+Architecture: iphoneos-arm
+Description: Yet another XPC library for iOS
+Maintainer: 82Flex <82flex@gmail.com>
+Author: 82Flex <82flex@gmail.com>
+Section: System
+Tag: role::developer
