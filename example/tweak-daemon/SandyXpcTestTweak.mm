@@ -1,5 +1,7 @@
 #import <CaptainHook/CaptainHook.h>
 #import <Foundation/Foundation.h>
+#import <dlfcn.h>
+#import <libSandy.h>
 #import <libSandyXpc.h>
 
 #import "SandyXpcTestDaemon.h"
@@ -35,6 +37,20 @@ static void TestConnection(void) {
 
 CHConstructor {
     @autoreleasepool {
+        void *sandyHandle = dlopen("@rpath/libsandy.dylib", RTLD_LAZY);
+        if (sandyHandle) {
+            int (*__dyn_libSandy_applyProfile)(const char *profileName) =
+                (int (*)(const char *))dlsym(sandyHandle, "libSandy_applyProfile");
+            if (__dyn_libSandy_applyProfile) {
+                int sandyStatus = __dyn_libSandy_applyProfile("SandyXpcTestTweak");
+                if (sandyStatus == kLibSandyErrorXPCFailure) {
+                    NSLog(@TAG "Failed to apply profile");
+                } else {
+                    NSLog(@TAG "Profile applied");
+                }
+            }
+        }
+
         TestConnection();
     }
 }
