@@ -1,8 +1,7 @@
-Package: com.82flex.libsandyxpc
-Name: libSandyXpc
+Package: com.82flex.libsandyxpc.test
+Name: libSandyXpc (Test Suite)
 Version: 1.0
 Architecture: iphoneos-arm
-Depends: libSandy
 Description: Yet another XPC library for iOS
 Maintainer: 82Flex <82flex@gmail.com>
 Author: 82Flex <82flex@gmail.com>

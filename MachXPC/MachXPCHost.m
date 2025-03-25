@@ -10,6 +10,7 @@
 #import "MachXPC.h"
 
 #import "SXXFindSymbols.h"
+#import "pac_helper.h"
 
 #import <bootstrap.h>
 #import <dlfcn.h>
@@ -52,28 +53,28 @@ xpc_endpoint_t (*_xpc_endpoint_create)(mach_port_t) = NULL;
     _name = name;
     _handler = handler;
     _listenerQueue = dispatch_queue_create([[NSString stringWithFormat:@"%@/machXPC_host_q", name] UTF8String],
-                                           DISPATCH_QUEUE_SERIAL);
+                                           DISPATCH_QUEUE_SERIAL_WITH_AUTORELEASE_POOL);
 
     _dispatchSrc = dispatch_source_create(DISPATCH_SOURCE_TYPE_MACH_RECV, _server_port, 0, _listenerQueue);
 
     dispatch_source_set_event_handler(_dispatchSrc, ^{
-      msg_format_response_r_t recv_msg;
-      mach_msg_header_t *recv_hdr;
+        msg_format_response_r_t recv_msg;
+        mach_msg_header_t *recv_hdr;
 
-      recv_hdr = &(recv_msg.header);
-      recv_hdr->msgh_remote_port = self->_server_port;
-      recv_hdr->msgh_local_port = MACH_PORT_NULL;
-      recv_hdr->msgh_size = sizeof(recv_msg);
-      recv_msg.data.name = 0;
-      kern_return_t kr = mach_msg(recv_hdr, MACH_RCV_MSG, 0, recv_hdr->msgh_size, self->_server_port,
-                                  MACH_MSG_TIMEOUT_NONE, MACH_PORT_NULL);
+        recv_hdr = &(recv_msg.header);
+        recv_hdr->msgh_remote_port = self->_server_port;
+        recv_hdr->msgh_local_port = MACH_PORT_NULL;
+        recv_hdr->msgh_size = sizeof(recv_msg);
+        recv_msg.data.name = 0;
+        kern_return_t kr = mach_msg(recv_hdr, MACH_RCV_MSG, 0, recv_hdr->msgh_size, self->_server_port,
+                                    MACH_MSG_TIMEOUT_NONE, MACH_PORT_NULL);
 
-      if (kr != KERN_SUCCESS) {
-          return;
-      }
+        if (kr != KERN_SUCCESS) {
+            return;
+        }
 
-      char *serviceName = (char *)(void *)recv_msg.ool.address;
-      [self _setupEndpointWithPort:recv_msg.data.name forService:[NSString stringWithUTF8String:serviceName]];
+        char *serviceName = (char *)(void *)recv_msg.ool.address;
+        [self _setupEndpointWithPort:recv_msg.data.name forService:[NSString stringWithUTF8String:serviceName]];
     });
 
     return self;
@@ -108,7 +109,7 @@ xpc_endpoint_t (*_xpc_endpoint_create)(mach_port_t) = NULL;
     static dispatch_once_t onceToken;
     dispatch_once(&onceToken, ^{
         dlopen("/usr/lib/system/libxpc.dylib", RTLD_LAZY);
-        _xpc_endpoint_create = SXXFindSymbol("libxpc.dylib", "__xpc_endpoint_create");
+        _xpc_endpoint_create = make_sym_callable(SXXFindSymbol("libxpc.dylib", "__xpc_endpoint_create"));
     });
 }
 

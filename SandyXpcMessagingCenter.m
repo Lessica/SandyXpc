@@ -52,6 +52,7 @@
         mConnections = [[NSMutableArray alloc] init];
         mMessageBlockers = [[NSMutableDictionary alloc] init];
         mMessageHandlers = [[NSMutableDictionary alloc] init];
+        mMessageReplies = [[NSMutableDictionary alloc] init];
     }
     return self;
 }
@@ -72,12 +73,13 @@
 }
 
 - (void)runServerProtectedByEntitlement:(NSString *)entitlementKey {
-    NSAssert(mListener, @"invalid listener");
     mProtectedEntitlementKey = [entitlementKey copy];
 
     if (!mListener) {
         mListener = [[MachXPCListener alloc] initWithObject:self identifier:self.name];
     }
+
+    NSAssert(mListener, @"invalid listener");
 
     [mListener resume];
 }
@@ -175,11 +177,14 @@
     NSAssert(arguments.count > 0, @"invalid arguments");
 
     NSString *messageName = arguments[0];
-    id reply = arguments[1];
-
     dispatch_semaphore_t semaphore = mMessageBlockers[messageName];
+
     if (semaphore) {
-        mMessageReplies[messageName] = reply;
+        if (arguments.count > 1) {
+            id reply = arguments[1];
+            mMessageReplies[messageName] = reply;
+        }
+
         dispatch_semaphore_signal(semaphore);
     }
 }

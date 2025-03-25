@@ -6,6 +6,8 @@ include $(THEOS)/makefiles/common.mk
 LIBRARY_NAME += libSandyXpc
 
 libSandyXpc_USE_MODULES := 0
+libSandyXpc_INSTALL := 1
+libSandyXpc_INSTALL_TO_THEOS := 1
 
 libSandyXpc_FILES += SandyXpcConnection.m
 libSandyXpc_FILES += SandyXpcMessagingCenter.m
@@ -25,3 +27,6 @@ libSandyXpc_INSTALL_PATH := /usr/lib
 libSandyXpc_PUBLIC_HEADERS += libSandyXpc.h
 
 include $(THEOS_MAKE_PATH)/library.mk
+
+after-stage::
+	@cp -v "./libSandyXpc.h" "$(THEOS)/include"

@@ -5,6 +5,8 @@
 
 #import "SandyXpcConnection.h"
 
+#define TAG "SandyXpcConnection : "
+
 @interface SandyXpcConnection ()
 
 @property(nonatomic, strong) id<SandyXpcClient> clientProxy;
@@ -49,15 +51,21 @@
         argumentIndex++;
     }
 
+    NSArray *retainedArguments = [arguments copy];
     dispatch_async(mCallbackQueue, ^(void) {
         [handler invoke];
 
-        if (![handler.methodSignature isOneway]) {
-            id retVal;
+        // just here to retain the arguments
+        (void)retainedArguments;
+
+        if ([handler.methodSignature methodReturnLength] > 0) {
+            id __unsafe_unretained retVal;
             [handler getReturnValue:&retVal];
 
-            if (retVal) {
-                [self.clientProxy receiveMessageWithName:name arguments:[NSArray arrayWithObjects:name, retVal, nil]];
+            id safeReturnValue = retVal;
+            if (safeReturnValue) {
+                [self.clientProxy receiveMessageWithName:name
+                                               arguments:[NSArray arrayWithObjects:name, safeReturnValue, nil]];
             } else {
                 [self.clientProxy receiveMessageWithName:name arguments:[NSArray arrayWithObjects:name, nil]];
             }
