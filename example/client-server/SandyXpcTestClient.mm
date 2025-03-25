@@ -28,10 +28,9 @@ int main(int argc, const char *argv[]) {
 
         if (!retVal[@"reply"]) {
             NSLog(@TAG "No reply received");
-            return EXIT_FAILURE;
+        } else {
+            printf("%s\n", [retVal[@"reply"] UTF8String]);
         }
-
-        printf("%s\n", [retVal[@"reply"] UTF8String]);
     }
 
     return EXIT_SUCCESS;

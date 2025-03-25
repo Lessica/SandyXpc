@@ -143,12 +143,12 @@
     dispatch_sync(mCallbackQueue, ^{
         NSAssert(!mListener, @"you cannot send messages from a server");
 
-        id<SandyXpcServer> mServerProxy = [self establishConnectionWithErrorHandler:^(NSError *_Nonnull err) {
+        id<SandyXpcServer> serverProxy = [self establishConnectionWithErrorHandler:^(NSError *_Nonnull err) {
             NSLog(@TAG "remote proxy error occurred: %@", err);
             error = err;
         }];
 
-        if (!mServerProxy) {
+        if (!serverProxy) {
             return;
         }
 
@@ -156,7 +156,7 @@
         dispatch_semaphore_t semaphore = dispatch_semaphore_create(0);
         mMessageBlockers[messageName] = semaphore;
 
-        [mServerProxy sendMessageWithName:messageName arguments:[NSArray arrayWithObjects:messageName, userInfo, nil]];
+        [serverProxy sendMessageWithName:messageName arguments:[NSArray arrayWithObjects:messageName, userInfo, nil]];
         dispatch_semaphore_wait(semaphore, DISPATCH_TIME_FOREVER);
 
         reply = mMessageReplies[messageName];
@@ -209,6 +209,12 @@
             connection.invalidationHandler = connection.interruptionHandler = ^{
                 NSLog(@TAG "connection invalidated");
                 strongSelf->mClientConnection = nil;
+                [[strongSelf->mMessageBlockers allValues]
+                    enumerateObjectsUsingBlock:^(dispatch_semaphore_t _Nonnull semaphore, NSUInteger idx,
+                                                 BOOL *_Nonnull stop) {
+                        dispatch_semaphore_signal(semaphore);
+                    }];
+                [strongSelf->mMessageBlockers removeAllObjects];
             };
 
             [connection resume];
