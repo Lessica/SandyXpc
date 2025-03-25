@@ -238,6 +238,7 @@
 
         id entitlementValue = [newConnection valueForEntitlement:mProtectedEntitlementKey];
         if (!entitlementValue || ![entitlementValue isKindOfClass:[NSNumber class]]) {
+            NSLog(@TAG "refusing connection due to missing entitlement %@", mProtectedEntitlementKey);
             return NO;
         }
 

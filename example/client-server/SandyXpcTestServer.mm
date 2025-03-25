@@ -43,7 +43,7 @@ CHConstructor {
                                          target:server
                                        selector:@selector(onTwoWayMessage:userInfo:)];
 
-        [messagingCenter runServer];
+        [messagingCenter runServerProtectedByEntitlement:@"com.82flex.libsandyxpc.test-server.allow"];
 
         NSLog(@TAG "Server is running...");
     }

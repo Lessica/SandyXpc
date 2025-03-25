@@ -17,6 +17,6 @@ SandyXpcTestDaemon_ARCHS := arm64
 SandyXpcTestDaemon_FILES += SandyXpcTestDaemon.mm
 SandyXpcTestDaemon_CFLAGS += -fobjc-arc
 SandyXpcTestDaemon_LIBRARIES += SandyXpc
-SandyXpcTestDaemon_CODESIGN_FLAGS = -Sentitlements.plist
+SandyXpcTestDaemon_CODESIGN_FLAGS += -Sentitlements.plist
 
 include $(THEOS_MAKE_PATH)/tool.mk
