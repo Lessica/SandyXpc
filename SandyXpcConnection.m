@@ -48,70 +48,46 @@
 }
 
 - (void)sendMessageWithName:(NSString *)name arguments:(NSArray *)arguments {
-    NSInvocation *handler = self.messageHandlers[name];
-    NSAssert(handler, @"unable to select handler for message %@", name);
+    // declare block
+    __weak typeof(self) weakSelf = self;
+    void (^block)(void) = ^(void) {
+        __strong typeof(weakSelf) strongSelf = weakSelf;
 
-    // + self, _cmd
-    NSAssert(handler.methodSignature.numberOfArguments == arguments.count + 2,
-             @"invalid number of arguments for message %@", name);
+        NSInvocation *handler = [strongSelf messageHandlers][name];
+        NSAssert(handler, @"unable to select handler for message %@", name);
 
-    NSInteger argumentIndex = 2;
-    for (NSObject *argument in arguments) {
-        void *argumentPtr = (__bridge void *)(argument);
-        [handler setArgument:&argumentPtr atIndex:argumentIndex];
-        argumentIndex++;
-    }
+        // + self, _cmd
+        NSAssert(handler.methodSignature.numberOfArguments == arguments.count + 2,
+                @"invalid number of arguments for message %@", name);
 
-    NSArray *retainedArguments = [arguments copy];
+        NSInteger argumentIndex = 2;
+        for (NSObject *argument in arguments) {
+            void *argumentPtr = (__bridge void *)(argument);
+            [handler setArgument:&argumentPtr atIndex:argumentIndex];
+            argumentIndex++;
+        }
+
+        [handler invoke];
+
+        if ([handler.methodSignature methodReturnLength] > 0) {
+            id __unsafe_unretained retVal;
+            [handler getReturnValue:&retVal];
+
+            id safeReturnValue = retVal;
+            if (safeReturnValue) {
+                [strongSelf.clientProxy
+                    receiveMessageWithName:name
+                                    arguments:[NSArray arrayWithObjects:name, safeReturnValue, nil]];
+            } else {
+                [strongSelf.clientProxy receiveMessageWithName:name arguments:[NSArray arrayWithObjects:name, nil]];
+            }
+        }
+    };
 
     if (mCallbackRunLoop) {
-        __weak typeof(self) weakSelf = self;
-        [mCallbackRunLoop performBlock:^(void) {
-            __strong typeof(weakSelf) strongSelf = weakSelf;
-
-            [handler invoke];
-
-            // just here to retain the arguments
-            (void)retainedArguments;
-
-            if ([handler.methodSignature methodReturnLength] > 0) {
-                id __unsafe_unretained retVal;
-                [handler getReturnValue:&retVal];
-
-                id safeReturnValue = retVal;
-                if (safeReturnValue) {
-                    [strongSelf.clientProxy
-                        receiveMessageWithName:name
-                                     arguments:[NSArray arrayWithObjects:name, safeReturnValue, nil]];
-                } else {
-                    [strongSelf.clientProxy receiveMessageWithName:name arguments:[NSArray arrayWithObjects:name, nil]];
-                }
-            }
-        }];
+        [mCallbackRunLoop performBlock:block];
     } else {
-        __weak typeof(self) weakSelf = self;
-        dispatch_async(mCallbackQueue, ^{
-            __strong typeof(weakSelf) strongSelf = weakSelf;
-
-            [handler invoke];
-
-            // just here to retain the arguments
-            (void)retainedArguments;
-
-            if ([handler.methodSignature methodReturnLength] > 0) {
-                id __unsafe_unretained retVal;
-                [handler getReturnValue:&retVal];
-
-                id safeReturnValue = retVal;
-                if (safeReturnValue) {
-                    [strongSelf.clientProxy
-                        receiveMessageWithName:name
-                                     arguments:[NSArray arrayWithObjects:name, safeReturnValue, nil]];
-                } else {
-                    [strongSelf.clientProxy receiveMessageWithName:name arguments:[NSArray arrayWithObjects:name, nil]];
-                }
-            }
-        });
+        dispatch_async(mCallbackQueue, block);
     }
 }
 
