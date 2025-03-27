@@ -17,13 +17,14 @@
 
 @implementation SandyXpcMessagingCenter {
     /* Server */
-    dispatch_queue_t mCallbackQueue;
+    NSRunLoop *mServerRunLoop;
     MachXPCListener *mListener;
     NSMutableArray<NSXPCConnection *> *mConnections;
     NSString *mProtectedEntitlementKey;
     NSMutableDictionary<NSString *, NSInvocation *> *mMessageHandlers;
 
     /* Client */
+    dispatch_queue_t mClientQueue;
     NSXPCConnection *mClientConnection;
     NSMutableDictionary<NSString *, dispatch_semaphore_t> *mMessageBlockers;
     NSMutableDictionary<NSString *, id> *mMessageReplies;
@@ -33,22 +34,21 @@
     return [[self alloc] initWithName:name];
 }
 
-+ (instancetype)centerNamed:(NSString *)name callbackQueue:(dispatch_queue_t)callbackQueue {
-    return [[self alloc] initWithName:name callbackQueue:callbackQueue];
++ (instancetype)centerNamed:(NSString *)name clientQueue:(dispatch_queue_t)clientQueue {
+    return [[self alloc] initWithName:name clientQueue:clientQueue];
 }
 
 - (instancetype)initWithName:(NSString *)name {
-    return
-        [self initWithName:name
-             callbackQueue:dispatch_queue_create([NSString stringWithFormat:@"%@/machXPC_callback_q", name].UTF8String,
-                                                 DISPATCH_QUEUE_SERIAL_WITH_AUTORELEASE_POOL)];
+    return [self initWithName:name
+                  clientQueue:dispatch_queue_create([NSString stringWithFormat:@"%@/machXPC_client_q", name].UTF8String,
+                                                    DISPATCH_QUEUE_SERIAL_WITH_AUTORELEASE_POOL)];
 }
 
-- (instancetype)initWithName:(NSString *)name callbackQueue:(dispatch_queue_t)callbackQueue {
+- (instancetype)initWithName:(NSString *)name clientQueue:(dispatch_queue_t)clientQueue {
     self = [super init];
     if (self) {
         _name = [name copy];
-        mCallbackQueue = callbackQueue;
+        mClientQueue = clientQueue;
         mConnections = [[NSMutableArray alloc] init];
         mMessageBlockers = [[NSMutableDictionary alloc] init];
         mMessageHandlers = [[NSMutableDictionary alloc] init];
@@ -84,6 +84,17 @@
     [mListener resume];
 }
 
+- (void)runServerOnCurrentThread {
+    [self runServerOnCurrentThreadProtectedByEntitlement:@""];
+}
+
+- (void)runServerOnCurrentThreadProtectedByEntitlement:(NSString *)entitlementKey {
+    mServerRunLoop = [NSRunLoop currentRunLoop];
+    NSAssert(mServerRunLoop, @"invalid run loop");
+
+    [self runServerProtectedByEntitlement:entitlementKey];
+}
+
 - (void)stopServer {
     [mListener suspend];
 }
@@ -108,7 +119,7 @@
     __block BOOL success = NO;
     __block NSError *error = nil;
 
-    dispatch_sync(mCallbackQueue, ^{
+    dispatch_sync(mClientQueue, ^{
         NSAssert(!mListener, @"you cannot send messages from a server");
 
         id<SandyXpcServer> serverProxy = [self establishConnectionWithErrorHandler:^(NSError *_Nonnull err) {
@@ -140,7 +151,7 @@
     __block id reply = nil;
     __block NSError *error = nil;
 
-    dispatch_sync(mCallbackQueue, ^{
+    dispatch_sync(mClientQueue, ^{
         NSAssert(!mListener, @"you cannot send messages from a server");
 
         id<SandyXpcServer> serverProxy = [self establishConnectionWithErrorHandler:^(NSError *_Nonnull err) {
@@ -258,7 +269,8 @@
     newConnection.exportedInterface = [NSXPCInterface interfaceWithProtocol:@protocol(SandyXpcServer)];
 
     SandyXpcConnection *connectionProxy = [[SandyXpcConnection alloc] initWithConnection:newConnection
-                                                                           callbackQueue:mCallbackQueue];
+                                                                           callbackQueue:mClientQueue
+                                                                         callbackRunLoop:mServerRunLoop];
     [connectionProxy setMessageHandlers:[mMessageHandlers copy]];
 
     newConnection.exportedObject = connectionProxy;
@@ -281,7 +293,7 @@
 }
 
 - (void)ping {
-    dispatch_sync(mCallbackQueue, ^{
+    dispatch_sync(mClientQueue, ^{
         NSAssert(!mListener, @"you cannot send messages from a server");
 
         id<SandyXpcServer> serverProxy = [self establishConnectionWithErrorHandler:^(NSError *_Nonnull err) {

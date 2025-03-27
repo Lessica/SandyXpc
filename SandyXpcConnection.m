@@ -8,21 +8,23 @@
 #define TAG "SandyXpcConnection : "
 
 @interface SandyXpcConnection ()
-
 @property(nonatomic, strong) id<SandyXpcClient> clientProxy;
-
 @end
 
 @implementation SandyXpcConnection {
     dispatch_queue_t mCallbackQueue;
+    NSRunLoop *mCallbackRunLoop;
 }
 
-- (instancetype)initWithConnection:(NSXPCConnection *)connection callbackQueue:(nonnull dispatch_queue_t)callbackQueue {
+- (instancetype)initWithConnection:(NSXPCConnection *)connection
+                     callbackQueue:(nonnull dispatch_queue_t)callbackQueue
+                   callbackRunLoop:(NSRunLoop *_Nullable)callbackRunLoop {
     self = [super init];
     if (self) {
         _connection = connection;
         _clientProxy = (id<SandyXpcClient>)connection.remoteObjectProxy;
         mCallbackQueue = callbackQueue;
+        mCallbackRunLoop = callbackRunLoop;
     }
     return self;
 }
@@ -30,10 +32,19 @@
 #pragma mark - SandyXpcServer
 
 - (void)ping {
-    __weak typeof(self) weakSelf = self;
-    dispatch_async(mCallbackQueue, ^(void) {
-        [weakSelf.clientProxy pong];
-    });
+    if (mCallbackRunLoop) {
+        __weak typeof(self) weakSelf = self;
+        [mCallbackRunLoop performBlock:^(void) {
+            __strong typeof(weakSelf) strongSelf = weakSelf;
+            [strongSelf.clientProxy pong];
+        }];
+    } else {
+        __weak typeof(self) weakSelf = self;
+        dispatch_async(mCallbackQueue, ^{
+            __strong typeof(weakSelf) strongSelf = weakSelf;
+            [strongSelf.clientProxy pong];
+        });
+    }
 }
 
 - (void)sendMessageWithName:(NSString *)name arguments:(NSArray *)arguments {
@@ -52,25 +63,56 @@
     }
 
     NSArray *retainedArguments = [arguments copy];
-    dispatch_async(mCallbackQueue, ^(void) {
-        [handler invoke];
 
-        // just here to retain the arguments
-        (void)retainedArguments;
+    if (mCallbackRunLoop) {
+        __weak typeof(self) weakSelf = self;
+        [mCallbackRunLoop performBlock:^(void) {
+            __strong typeof(weakSelf) strongSelf = weakSelf;
 
-        if ([handler.methodSignature methodReturnLength] > 0) {
-            id __unsafe_unretained retVal;
-            [handler getReturnValue:&retVal];
+            [handler invoke];
 
-            id safeReturnValue = retVal;
-            if (safeReturnValue) {
-                [self.clientProxy receiveMessageWithName:name
-                                               arguments:[NSArray arrayWithObjects:name, safeReturnValue, nil]];
-            } else {
-                [self.clientProxy receiveMessageWithName:name arguments:[NSArray arrayWithObjects:name, nil]];
+            // just here to retain the arguments
+            (void)retainedArguments;
+
+            if ([handler.methodSignature methodReturnLength] > 0) {
+                id __unsafe_unretained retVal;
+                [handler getReturnValue:&retVal];
+
+                id safeReturnValue = retVal;
+                if (safeReturnValue) {
+                    [strongSelf.clientProxy
+                        receiveMessageWithName:name
+                                     arguments:[NSArray arrayWithObjects:name, safeReturnValue, nil]];
+                } else {
+                    [strongSelf.clientProxy receiveMessageWithName:name arguments:[NSArray arrayWithObjects:name, nil]];
+                }
             }
-        }
-    });
+        }];
+    } else {
+        __weak typeof(self) weakSelf = self;
+        dispatch_async(mCallbackQueue, ^{
+            __strong typeof(weakSelf) strongSelf = weakSelf;
+
+            [handler invoke];
+
+            // just here to retain the arguments
+            (void)retainedArguments;
+
+            if ([handler.methodSignature methodReturnLength] > 0) {
+                id __unsafe_unretained retVal;
+                [handler getReturnValue:&retVal];
+
+                id safeReturnValue = retVal;
+                if (safeReturnValue) {
+                    [strongSelf.clientProxy
+                        receiveMessageWithName:name
+                                     arguments:[NSArray arrayWithObjects:name, safeReturnValue, nil]];
+                } else {
+                    [strongSelf.clientProxy receiveMessageWithName:name arguments:[NSArray arrayWithObjects:name, nil]];
+                }
+            }
+        });
+    }
 }
 
 @end

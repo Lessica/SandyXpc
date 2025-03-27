@@ -14,7 +14,8 @@ NS_ASSUME_NONNULL_BEGIN
 
 - (instancetype)init NS_UNAVAILABLE;
 - (instancetype)initWithConnection:(NSXPCConnection *)connection
-                     callbackQueue:(dispatch_queue_t)callbackQueue NS_DESIGNATED_INITIALIZER;
+                     callbackQueue:(dispatch_queue_t)callbackQueue
+                   callbackRunLoop:(NSRunLoop *_Nullable)callbackRunLoop;
 
 @end
 

@@ -12,12 +12,18 @@ NS_ASSUME_NONNULL_BEGIN
 @property(nonatomic, copy, readonly) NSString *name;
 
 + (instancetype)centerNamed:(NSString *)name;
-+ (instancetype)centerNamed:(NSString *)name callbackQueue:(dispatch_queue_t)callbackQueue;
++ (instancetype)centerNamed:(NSString *)name clientQueue:(dispatch_queue_t)clientQueue;
 
 - (instancetype)init NS_UNAVAILABLE;
 
+/* dispatch_queue */
 - (void)runServer;
 - (void)runServerProtectedByEntitlement:(NSString *)entitlementKey;
+
+/* NSRunLoop */
+- (void)runServerOnCurrentThread;
+- (void)runServerOnCurrentThreadProtectedByEntitlement:(NSString *)entitlementKey;
+
 - (void)stopServer;
 
 - (void)registerForMessageName:(NSString *)messageName target:(id)target selector:(SEL)selector;
