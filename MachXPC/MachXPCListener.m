@@ -11,9 +11,11 @@
 #import <bootstrap.h>
 #import <mach/mach.h>
 
+#define TAG "MachXPCListener : "
+
 @interface MachXPCListener ()
-@property(nonnull) dispatch_queue_t listenerQueue;
-@property(nonnull) dispatch_source_t dispatchSrc;
+@property(nonatomic, nonnull) dispatch_queue_t listenerQueue;
+@property(nonatomic, nonnull) dispatch_source_t dispatchSrc;
 @end
 
 @implementation MachXPCListener {
@@ -40,6 +42,8 @@ kern_return_t _MSGetXPCListenerPort(mach_port_t server_port, mach_port_t *outPor
 
     kern_return_t kr = bootstrap_check_in(bootstrap_port, identifier.UTF8String, &_server_port);
     if (kr != KERN_SUCCESS) {
+        NSLog(@TAG "Failed to check in service %@: %s", identifier, bootstrap_strerror(kr));
+        _dispatchSrc = NULL;
         return NULL;
     }
 
@@ -91,7 +95,9 @@ kern_return_t _MSGetXPCListenerPort(mach_port_t server_port, mach_port_t *outPor
 }
 
 - (void)dealloc {
-    dispatch_source_cancel(_dispatchSrc);
+    if (_dispatchSrc) {
+        dispatch_source_cancel(_dispatchSrc);
+    }
     mach_port_deallocate(mach_task_self(), _server_port);
 }
 
