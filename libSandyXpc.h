@@ -12,7 +12,7 @@ NS_ASSUME_NONNULL_BEGIN
 @property(nonatomic, copy, readonly) NSString *name;
 
 + (instancetype)centerNamed:(NSString *)name;
-+ (instancetype)centerNamed:(NSString *)name clientQueue:(dispatch_queue_t)clientQueue;
++ (instancetype)centerNamed:(NSString *)name callbackQueue:(dispatch_queue_t)callbackQueue;
 
 - (instancetype)init NS_UNAVAILABLE;
 

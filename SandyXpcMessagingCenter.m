@@ -34,21 +34,21 @@
     return [[self alloc] initWithName:name];
 }
 
-+ (instancetype)centerNamed:(NSString *)name clientQueue:(dispatch_queue_t)clientQueue {
-    return [[self alloc] initWithName:name clientQueue:clientQueue];
++ (instancetype)centerNamed:(NSString *)name callbackQueue:(dispatch_queue_t)callbackQueue {
+    return [[self alloc] initWithName:name callbackQueue:callbackQueue];
 }
 
 - (instancetype)initWithName:(NSString *)name {
     return [self initWithName:name
-                  clientQueue:dispatch_queue_create([NSString stringWithFormat:@"%@/machXPC_client_q", name].UTF8String,
+                callbackQueue:dispatch_queue_create([NSString stringWithFormat:@"%@/machXPC_client_q", name].UTF8String,
                                                     DISPATCH_QUEUE_SERIAL_WITH_AUTORELEASE_POOL)];
 }
 
-- (instancetype)initWithName:(NSString *)name clientQueue:(dispatch_queue_t)clientQueue {
+- (instancetype)initWithName:(NSString *)name callbackQueue:(dispatch_queue_t)callbackQueue {
     self = [super init];
     if (self) {
         _name = [name copy];
-        mClientQueue = clientQueue;
+        mClientQueue = callbackQueue;
         mConnections = [[NSMutableArray alloc] init];
         mMessageBlockers = [[NSMutableDictionary alloc] init];
         mMessageHandlers = [[NSMutableDictionary alloc] init];
