@@ -26,8 +26,12 @@ libSandyXpc_FILES += MachXPC/SXXFindSymbols.m
 libSandyXpc_CFLAGS += -fobjc-arc
 libSandyXpc_CFLAGS += -I. -Iheaders
 
-ifneq ($(THEOS_PACKAGE_SCHEME),)
+ifeq ($(THEOS_PACKAGE_SCHEME),rootless)
 libSandyXpc_LDFLAGS += -install_name @rpath/libSandyXpc.dylib
+else
+ifeq ($(THEOS_PACKAGE_SCHEME),roothide)
+libSandyXpc_LDFLAGS += -install_name @loader_path/.jbroot/usr/lib/libSandyXpc.dylib
+endif
 endif
 
 libSandyXpc_FRAMEWORKS += CoreFoundation Foundation
