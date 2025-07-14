@@ -40,6 +40,7 @@
     }
 
     dispatch_async(dispatch_get_global_queue(QOS_CLASS_UTILITY, 0), ^{
+      kern_return_t kr;
       msg_format_response_t send_msg;
       mach_msg_header_t *send_hdr;
 
@@ -61,8 +62,7 @@
       send_msg.ool.copy = MACH_MSG_VIRTUAL_COPY;
       send_msg.ool.type = MACH_MSG_OOL_DESCRIPTOR;
 
-      kern_return_t kr =
-          mach_msg(send_hdr, MACH_SEND_MSG, send_hdr->msgh_size, 0, MACH_PORT_NULL, 5000, MACH_PORT_NULL);
+      kr = mach_msg(send_hdr, MACH_SEND_MSG | MACH_SEND_TIMEOUT, send_hdr->msgh_size, 0, MACH_PORT_NULL, 5000, MACH_PORT_NULL);
 
       if (kr) {
           handler(NO);

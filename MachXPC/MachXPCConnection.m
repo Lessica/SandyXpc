@@ -55,13 +55,27 @@
     }
 
     dispatch_async(dispatch_get_global_queue(qos, 0), ^{
+        kern_return_t kr;
         mach_msg_header_t header;
+
         header.msgh_bits = MACH_MSGH_BITS(MACH_MSG_TYPE_COPY_SEND, MACH_MSG_TYPE_MAKE_SEND);
         header.msgh_local_port = client_port;
         header.msgh_remote_port = server_port;
         header.msgh_size = sizeof(mach_msg_header_t);
         header.msgh_id = 888;
-        mach_msg(&header, MACH_SEND_MSG, header.msgh_size, 0, MACH_PORT_NULL, MACH_MSG_TIMEOUT_NONE, MACH_PORT_NULL);
+
+        kr = mach_msg(&header, MACH_SEND_MSG | MACH_SEND_TIMEOUT, header.msgh_size, 0, MACH_PORT_NULL, 5000, MACH_PORT_NULL);
+
+        if (kr != KERN_SUCCESS) {
+            if (inMainQueue) {
+                dispatch_async(dispatch_get_main_queue(), ^{
+                    handler(NULL);
+                });
+            } else {
+                handler(NULL);
+            }
+            return;
+        }
 
         msg_format_response_r_t recv_msg;
         mach_msg_header_t *recv_hdr;
@@ -71,7 +85,8 @@
         recv_hdr->msgh_local_port = MACH_PORT_NULL;
         recv_hdr->msgh_size = sizeof(recv_msg);
         recv_msg.data.name = 0;
-        kern_return_t kr = mach_msg(recv_hdr, MACH_RCV_MSG, 0, recv_hdr->msgh_size, client_port, 5000, MACH_PORT_NULL);
+
+        kr = mach_msg(recv_hdr, MACH_RCV_MSG | MACH_RCV_TIMEOUT, 0, recv_hdr->msgh_size, client_port, 5000, MACH_PORT_NULL);
 
         if (kr != KERN_SUCCESS) {
             if (inMainQueue) {

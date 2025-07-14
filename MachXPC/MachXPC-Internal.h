@@ -45,4 +45,10 @@ typedef struct {
 
 OBJC_EXTERN xpc_endpoint_t (*_xpc_endpoint_create)(mach_port_t);
 
+#if DEBUG
+    #define MachLog(fmt, ...) NSLog((@"%s:%d " fmt), __PRETTY_FUNCTION__, __LINE__, ##__VA_ARGS__)
+#else
+    #define MachLog(fmt, ...)
+#endif
+
 #endif /* MachXPC_Internal_h */

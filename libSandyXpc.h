@@ -7,6 +7,7 @@
 
 NS_ASSUME_NONNULL_BEGIN
 
+OBJC_VISIBLE
 @interface SandyXpcMessagingCenter : NSObject
 
 @property(nonatomic, copy, readonly) NSString *name;
@@ -37,5 +38,11 @@ NS_ASSUME_NONNULL_BEGIN
                                                     error:(NSError *__autoreleasing *_Nullable)error;
 
 @end
+
+#if DEBUG
+    #define SandyXpcLog(fmt, ...) NSLog((@"%s:%d " fmt), __PRETTY_FUNCTION__, __LINE__, ##__VA_ARGS__)
+#else
+    #define SandyXpcLog(fmt, ...)
+#endif
 
 NS_ASSUME_NONNULL_END

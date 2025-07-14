@@ -58,6 +58,7 @@ xpc_endpoint_t (*_xpc_endpoint_create)(mach_port_t) = NULL;
     _dispatchSrc = dispatch_source_create(DISPATCH_SOURCE_TYPE_MACH_RECV, _server_port, 0, _listenerQueue);
 
     dispatch_source_set_event_handler(_dispatchSrc, ^{
+        kern_return_t kr;
         msg_format_response_r_t recv_msg;
         mach_msg_header_t *recv_hdr;
 
@@ -66,8 +67,9 @@ xpc_endpoint_t (*_xpc_endpoint_create)(mach_port_t) = NULL;
         recv_hdr->msgh_local_port = MACH_PORT_NULL;
         recv_hdr->msgh_size = sizeof(recv_msg);
         recv_msg.data.name = 0;
-        kern_return_t kr = mach_msg(recv_hdr, MACH_RCV_MSG, 0, recv_hdr->msgh_size, self->_server_port,
-                                    MACH_MSG_TIMEOUT_NONE, MACH_PORT_NULL);
+
+        kr = mach_msg(recv_hdr, MACH_RCV_MSG, 0, recv_hdr->msgh_size, self->_server_port, MACH_MSG_TIMEOUT_NONE,
+                      MACH_PORT_NULL);
 
         if (kr != KERN_SUCCESS) {
             return;

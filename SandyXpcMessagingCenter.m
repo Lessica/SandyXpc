@@ -123,7 +123,7 @@
         NSAssert(!mListener, @"you cannot send messages from a server");
 
         id<SandyXpcServer> serverProxy = [self establishConnectionWithErrorHandler:^(NSError *_Nonnull err) {
-            NSLog(@TAG "remote proxy error occurred: %@", err);
+            SandyXpcLog(@TAG "remote proxy error occurred: %@", err);
             error = err;
         }];
 
@@ -154,9 +154,11 @@
     dispatch_sync(mClientQueue, ^{
         NSAssert(!mListener, @"you cannot send messages from a server");
 
+        dispatch_semaphore_t semaphore = dispatch_semaphore_create(0);
         id<SandyXpcServer> serverProxy = [self establishConnectionWithErrorHandler:^(NSError *_Nonnull err) {
-            NSLog(@TAG "remote proxy error occurred: %@", err);
+            SandyXpcLog(@TAG "remote proxy error occurred: %@", err);
             error = err;
+            dispatch_semaphore_signal(semaphore);
         }];
 
         if (!serverProxy) {
@@ -164,7 +166,6 @@
         }
 
         /* Two-way message */
-        dispatch_semaphore_t semaphore = dispatch_semaphore_create(0);
         mMessageBlockers[messageName] = semaphore;
 
         [serverProxy sendMessageWithName:messageName arguments:[NSArray arrayWithObjects:messageName, userInfo, nil]];
@@ -218,7 +219,7 @@
             connection.exportedObject = strongSelf; // <-- avoid retain cycle
 
             connection.invalidationHandler = connection.interruptionHandler = ^{
-                NSLog(@TAG "connection invalidated");
+                SandyXpcLog(@TAG "connection invalidated");
                 strongSelf->mClientConnection = nil;
                 [[strongSelf->mMessageBlockers allValues]
                     enumerateObjectsUsingBlock:^(dispatch_semaphore_t _Nonnull semaphore, NSUInteger idx,
@@ -255,7 +256,7 @@
 
         id entitlementValue = [newConnection valueForEntitlement:mProtectedEntitlementKey];
         if (!entitlementValue || ![entitlementValue isKindOfClass:[NSNumber class]]) {
-            NSLog(@TAG "refusing connection due to missing entitlement %@", mProtectedEntitlementKey);
+            SandyXpcLog(@TAG "refusing connection due to missing entitlement %@", mProtectedEntitlementKey);
             return NO;
         }
 
@@ -289,7 +290,7 @@
 #pragma mark - Ping Pong
 
 - (void)pong {
-    NSLog(@TAG "pong");
+    SandyXpcLog(@TAG "pong");
 }
 
 - (void)ping {
@@ -297,7 +298,7 @@
         NSAssert(!mListener, @"you cannot send messages from a server");
 
         id<SandyXpcServer> serverProxy = [self establishConnectionWithErrorHandler:^(NSError *_Nonnull err) {
-            NSLog(@TAG "remote proxy error occurred: %@", err);
+            SandyXpcLog(@TAG "remote proxy error occurred: %@", err);
         }];
 
         if (!serverProxy) {

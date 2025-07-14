@@ -42,13 +42,14 @@ kern_return_t _MSGetXPCListenerPort(mach_port_t server_port, mach_port_t *outPor
 
     kern_return_t kr = bootstrap_check_in(bootstrap_port, identifier.UTF8String, &_server_port);
     if (kr != KERN_SUCCESS) {
-        NSLog(@TAG "Failed to check in service %@: %s", identifier, bootstrap_strerror(kr));
+        MachLog(@TAG "Failed to check in service %@: %s", identifier, bootstrap_strerror(kr));
         _dispatchSrc = NULL;
         return NULL;
     }
 
     _dispatchSrc = dispatch_source_create(DISPATCH_SOURCE_TYPE_MACH_RECV, _server_port, 0, _listenerQueue);
     dispatch_source_set_event_handler(_dispatchSrc, ^{
+        kern_return_t kr;
         msg_format_response_r_t recv_msg;
         mach_msg_header_t *recv_hdr;
 
@@ -58,8 +59,13 @@ kern_return_t _MSGetXPCListenerPort(mach_port_t server_port, mach_port_t *outPor
         recv_hdr->msgh_size = sizeof(recv_msg);
         recv_msg.data.name = 0;
 
-        mach_msg(recv_hdr, MACH_RCV_MSG, 0, recv_hdr->msgh_size, self->_server_port, MACH_MSG_TIMEOUT_NONE,
-                 MACH_PORT_NULL);
+        kr = mach_msg(recv_hdr, MACH_RCV_MSG, 0, recv_hdr->msgh_size, self->_server_port, MACH_MSG_TIMEOUT_NONE,
+                      MACH_PORT_NULL);
+
+        if (kr != KERN_SUCCESS) {
+            MachLog(@TAG "Failed to receive message: %s", mach_error_string(kr));
+            return;
+        }
 
         msg_format_response_t send_msg;
         mach_msg_header_t *send_hdr;
@@ -80,7 +86,12 @@ kern_return_t _MSGetXPCListenerPort(mach_port_t server_port, mach_port_t *outPor
         send_msg.ool.copy = MACH_MSG_VIRTUAL_COPY;
         send_msg.ool.type = MACH_MSG_OOL_DESCRIPTOR;
 
-        mach_msg(send_hdr, MACH_SEND_MSG, send_hdr->msgh_size, 0, MACH_PORT_NULL, 5000, MACH_PORT_NULL);
+        kr = mach_msg(send_hdr, MACH_SEND_MSG | MACH_SEND_TIMEOUT, send_hdr->msgh_size, 0, MACH_PORT_NULL, 5000, MACH_PORT_NULL);
+
+        if (kr != KERN_SUCCESS) {
+            MachLog(@TAG "Failed to send message: %s", mach_error_string(kr));
+            return;
+        }
     });
 
     return self;
